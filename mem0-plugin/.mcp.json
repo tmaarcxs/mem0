@@ -1,10 +1,18 @@
 {
   "mcpServers": {
     "mem0": {
-      "type": "http",
-      "url": "https://mcp.mem0.ai/mcp/",
-      "headers": {
-        "Authorization": "Token ${MEM0_API_KEY}"
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py"],
+      "env": {
+        "MEM0_SELFHOSTED_URL": "${MEM0_SELFHOSTED_URL}",
+        "MEM0_SELFHOSTED_API_KEY": "${MEM0_SELFHOSTED_API_KEY}",
+        "MEM0_SELFHOSTED_USER_ID": "${MEM0_SELFHOSTED_USER_ID}",
+        "MEM0_SELFHOSTED_AGENT_ID": "${MEM0_SELFHOSTED_AGENT_ID}",
+        "MEM0_SELFHOSTED_TOP_K": "${MEM0_SELFHOSTED_TOP_K}",
+        "MEM0_SELFHOSTED_TIMEOUT": "${MEM0_SELFHOSTED_TIMEOUT}",
+        "MEM0_USER_ID": "${MEM0_USER_ID}",
+        "MEM0_AGENT_ID": "${MEM0_AGENT_ID}"
       }
     }
   }

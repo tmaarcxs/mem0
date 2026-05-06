@@ -1,36 +1,38 @@
 # Mem0 Plugin for Claude Code, Claude Cowork, Cursor & Codex
 
-Add persistent memory to your AI workflows. Store, retrieve, and manage memories across sessions using the Mem0 Platform. Works with **Claude Code** (CLI), **Claude Cowork** (desktop app), **Cursor**, and **Codex**.
+Add persistent memory to your AI workflows. Store, retrieve, and manage memories across sessions using Mem0. This fork makes **Claude Code** use a bundled stdio MCP adapter for a self-hosted Mem0 REST API, while the Cursor and Codex MCP examples below still point to Mem0 Cloud.
 
-## Step 1: Set your API key
+## Step 1: Configure Mem0
 
-> **You must complete this step before installing the plugin.**
+### Claude Code self-hosted mode
 
-1. Sign up at [app.mem0.ai](https://app.mem0.ai?utm_source=oss&utm_medium=mem0-plugin-readme) if you haven't already
-2. Go to [app.mem0.ai/dashboard/api-keys](https://app.mem0.ai/dashboard/api-keys?utm_source=oss&utm_medium=mem0-plugin-readme)
-3. Click **Create API Key** and copy the key (starts with `m0-`)
-4. Add it to your shell profile:
+Set the self-hosted REST API URL before installing the Claude Code plugin:
 
-   ```bash
-   # For zsh (default on macOS)
-   echo 'export MEM0_API_KEY="m0-your-api-key"' >> ~/.zshrc
-   source ~/.zshrc
+```bash
+export MEM0_SELFHOSTED_URL="http://your-mem0-host:8888"
+export MEM0_SELFHOSTED_USER_ID="your-user-id"
+export MEM0_SELFHOSTED_AGENT_ID="claude-code"
+```
 
-   # For bash
-   echo 'export MEM0_API_KEY="m0-your-api-key"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
+If your self-hosted server requires auth, also set:
 
-5. Confirm it's set:
+```bash
+export MEM0_SELFHOSTED_API_KEY="your-self-hosted-api-key"
+```
 
-   ```bash
-   echo $MEM0_API_KEY
-   # Should print: m0-your-api-key
-   ```
+The bundled MCP adapter also accepts `MEM0_BASE_URL`, `MEM0_USER_ID`, and `MEM0_AGENT_ID` as fallbacks.
+
+### Mem0 Cloud mode for Cursor and Codex
+
+Cursor and Codex configs in this plugin still use Mem0 Cloud. For those editors, set `MEM0_API_KEY` first:
+
+```bash
+export MEM0_API_KEY="m0-your-api-key"
+```
 
 ## Step 2: Install the plugin
 
-Choose one of the options below. All require `MEM0_API_KEY` to be set first (see above).
+Choose one of the options below.
 
 ### Claude Code (CLI) / Claude Cowork (Desktop)
 
@@ -39,7 +41,7 @@ Claude Code and Claude Cowork share the same plugin system.
 **CLI:**
 
 ```
-/plugin marketplace add mem0ai/mem0
+/plugin marketplace add tmaarcxs/mem0
 /plugin install mem0@mem0-plugins
 ```
 
