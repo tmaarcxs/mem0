@@ -449,7 +449,8 @@
                     "pages": [
                       "integrations/claude-code",
                       "integrations/cursor",
-                      "integrations/codex"
+                      "integrations/codex",
+                      "integrations/opencode"
                     ]
                   },
                   {

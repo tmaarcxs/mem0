@@ -247,6 +247,7 @@ If the user is on a pre-current major (Python < 2, TS < 3, or Platform `output_f
 - [Claude Code](https://docs.mem0.ai/integrations/claude-code) [Both]: Use when wiring memory into Claude Code.
 - [Cursor](https://docs.mem0.ai/integrations/cursor) [Both]: Use when wiring memory into Cursor.
 - [Codex](https://docs.mem0.ai/integrations/codex) [Both]: Use when wiring memory into Codex / other editor assistants.
+- [OpenCode](https://docs.mem0.ai/integrations/opencode) [OSS]: Use when wiring a self-hosted Mem0 MCP adapter, prompt-time recall, and native plugin hooks into OpenCode.
 
 ### Voice & Real-time
 - [LiveKit](https://docs.mem0.ai/integrations/livekit) [Both]: Use when building real-time voice/video with memory.

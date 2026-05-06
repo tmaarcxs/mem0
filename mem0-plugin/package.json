@@ -1,0 +1,35 @@
+{
+  "name": "@tmaarcxs/opencode-mem0",
+  "version": "0.1.0",
+  "description": "OpenCode plugin for self-hosted Mem0 memory tools and memory-first context.",
+  "type": "module",
+  "main": "./dist/opencode.js",
+  "exports": "./dist/opencode.js",
+  "files": [
+    "dist",
+    "scripts",
+    "README.md",
+    "logo.svg"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "opencode",
+    "mem0",
+    "mcp",
+    "memory"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.14.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.14.28",
+    "@opencode-ai/sdk": "^1.14.28",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

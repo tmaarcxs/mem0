@@ -1,0 +1,147 @@
+---
+title: OpenCode
+description: "Add persistent memory to OpenCode with the Mem0 plugin — self-hosted MCP tools, prompt-time recall, and native plugin hooks."
+---
+
+Add persistent memory to [**OpenCode**](https://opencode.ai/) with Mem0. The OpenCode plugin connects a self-hosted Mem0 REST server through a bundled stdio MCP adapter, injects relevant memories before prompts, and uses OpenCode's native lifecycle hooks to preserve recovery context.
+
+## Overview
+
+1. **Local MCP server** — Registers Mem0's bundled stdio MCP adapter for self-hosted REST APIs.
+2. **Prompt-time recall** — Searches Mem0 for relevant memories on incoming user messages and appends compact context.
+3. **Memory-first guidance** — Adds system instructions so OpenCode searches and stores durable memory intentionally.
+4. **Compaction recovery** — Adds recent session state to compaction context and can store a session-state memory.
+
+## Prerequisites
+
+1. OpenCode 1.14 or newer.
+2. A self-hosted Mem0 REST API, for example `http://localhost:8888`.
+3. Python 3 available as `python3` for the bundled MCP adapter.
+
+Export the self-hosted Mem0 settings before launching OpenCode:
+
+```bash
+export MEM0_SELFHOSTED_URL="http://your-mem0-host:8888"
+export MEM0_SELFHOSTED_USER_ID="your-user-id"
+export MEM0_SELFHOSTED_AGENT_ID="opencode"
+```
+
+If your self-hosted server requires auth, also set:
+
+```bash
+export MEM0_SELFHOSTED_API_KEY="your-self-hosted-api-key"
+```
+
+<Info>
+  The OpenCode plugin only reads `MEM0_SELFHOSTED_API_KEY` for self-hosted auth. It does not forward Mem0 Cloud's `MEM0_API_KEY` to your local server.
+</Info>
+
+## Installation
+
+### Option A — Full OpenCode Plugin
+
+Once the package is published to npm, install it with OpenCode:
+
+```bash
+opencode plugin @tmaarcxs/opencode-mem0
+```
+
+Or add it to your OpenCode config:
+
+```jsonc
+{
+  "plugin": ["@tmaarcxs/opencode-mem0"]
+}
+```
+
+The plugin registers the `mem0` MCP server automatically unless your OpenCode config already defines `mcp.mem0`. Existing user-defined MCP config is preserved by default.
+
+### Option B — MCP-only Fallback
+
+If you only need memory tools, add the bundled MCP adapter directly to your OpenCode config:
+
+```jsonc
+{
+  "mcp": {
+    "mem0": {
+      "type": "local",
+      "command": ["python3", "/path/to/mem0-plugin/scripts/mcp_server.py"],
+      "environment": {
+        "MEM0_SELFHOSTED_URL": "http://your-mem0-host:8888",
+        "MEM0_SELFHOSTED_USER_ID": "your-user-id",
+        "MEM0_SELFHOSTED_AGENT_ID": "opencode"
+      },
+      "enabled": true,
+      "timeout": 5000
+    }
+  }
+}
+```
+
+This exposes MCP memory tools but does not add prompt-time recall or lifecycle hooks.
+
+## Plugin Options
+
+OpenCode supports plugin entries with options:
+
+```jsonc
+{
+  "plugin": [
+    [
+      "@tmaarcxs/opencode-mem0",
+      {
+        "selfHostedUrl": "http://your-mem0-host:8888",
+        "userId": "your-user-id",
+        "agentId": "opencode",
+        "topK": 5,
+        "timeout": 5000
+      }
+    ]
+  ]
+}
+```
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `selfHostedUrl` | `MEM0_SELFHOSTED_URL`, `MEM0_BASE_URL`, then `http://localhost:8888` | Self-hosted Mem0 REST API URL |
+| `userId` | `MEM0_SELFHOSTED_USER_ID`, `MEM0_USER_ID`, then `$USER` | User scope for search and storage |
+| `agentId` | `MEM0_SELFHOSTED_AGENT_ID`, `MEM0_AGENT_ID`, then `opencode` | Agent scope for new memories |
+| `apiKey` | `MEM0_SELFHOSTED_API_KEY` | Optional self-hosted auth key |
+| `topK` | `MEM0_SELFHOSTED_TOP_K`, `MEM0_TOP_K`, then `5` | Number of prompt-time memories to inject |
+| `timeout` | `MEM0_SELFHOSTED_TIMEOUT`, `MEM0_TIMEOUT`, then `5000` | MCP server timeout in milliseconds |
+| `overwriteMcp` | `false` | Replace an existing `mcp.mem0` config |
+| `promptSearch` | `true` | Enable prompt-time memory search |
+| `storeOnCompact` | `true` | Store compact session-state memories |
+
+## What's Included
+
+| Component | Full Plugin | MCP-only |
+|-----------|:-----------:|:--------:|
+| MCP Server (9 memory tools) | Yes | Yes |
+| Prompt-time memory recall | Yes | No |
+| Memory-first system guidance | Yes | No |
+| Compaction/session-state hook | Yes | No |
+
+## Available MCP Tools
+
+Once connected, OpenCode can use these tools:
+
+| Tool | Description |
+|------|-------------|
+| `add_memory` | Save text or conversation history for a user/agent |
+| `search_memories` | Semantic search across memories with filters |
+| `get_memories` | List memories with filters and pagination |
+| `get_memory` | Retrieve a specific memory by ID |
+| `update_memory` | Overwrite a memory's text by ID |
+| `delete_memory` | Delete a single memory by ID |
+| `delete_all_memories` | Bulk delete all memories in scope |
+| `delete_entities` | Delete a user/agent/app/run entity and its memories |
+| `list_entities` | List users/agents/apps/runs stored in Mem0 |
+
+## Troubleshooting
+
+- **No `mem0` MCP server appears** — Restart OpenCode after changing config and run `opencode mcp list`.
+- **Connection failed** — Verify `MEM0_SELFHOSTED_URL` points to a reachable REST server and that Python 3 can run the bundled `scripts/mcp_server.py`.
+- **Existing MCP config is not changed** — The plugin preserves a user-defined `mcp.mem0` by default. Set `overwriteMcp: true` if you want the plugin to replace it.
+- **No memories are injected** — Check that `MEM0_SELFHOSTED_USER_ID` matches the user scope that stored the memories, and try a more specific prompt.
+- **Duplicate date prefixes in memory text** — The plugin instructs OpenCode not to add leading dates unless the date itself matters because Mem0 already stores timestamps as metadata.

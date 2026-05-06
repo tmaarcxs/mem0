@@ -1,12 +1,12 @@
-# Mem0 Plugin for Claude Code, Claude Cowork, Cursor & Codex
+# Mem0 Plugin for Claude Code, Claude Cowork, OpenCode, Cursor & Codex
 
-Add persistent memory to your AI workflows. Store, retrieve, and manage memories across sessions using Mem0. This fork makes **Claude Code** use a bundled stdio MCP adapter for a self-hosted Mem0 REST API, while the Cursor and Codex MCP examples below still point to Mem0 Cloud.
+Add persistent memory to your AI workflows. Store, retrieve, and manage memories across sessions using Mem0. This fork makes **Claude Code** and **OpenCode** use a bundled stdio MCP adapter for a self-hosted Mem0 REST API, while the Cursor and Codex MCP examples below still point to Mem0 Cloud.
 
 ## Step 1: Configure Mem0
 
-### Claude Code self-hosted mode
+### Claude Code and OpenCode self-hosted mode
 
-Set the self-hosted REST API URL before installing the Claude Code plugin:
+Set the self-hosted REST API URL before installing the Claude Code or OpenCode plugin:
 
 ```bash
 export MEM0_SELFHOSTED_URL="http://your-mem0-host:8888"
@@ -48,6 +48,46 @@ Claude Code and Claude Cowork share the same plugin system.
 **Cowork desktop app:** Open the Cowork tab, click **Customize** in the sidebar, click **Browse plugins**, and install Mem0.
 
 This installs the full plugin including the MCP server, lifecycle hooks (automatic memory capture), and the Mem0 SDK skill.
+
+### OpenCode
+
+**Option A — Full plugin** (self-hosted MCP + native OpenCode hooks):
+
+Once the npm package is published, install it with OpenCode:
+
+```bash
+opencode plugin @tmaarcxs/opencode-mem0
+```
+
+Or add it to your OpenCode config:
+
+```jsonc
+{
+  "plugin": ["@tmaarcxs/opencode-mem0"]
+}
+```
+
+The plugin registers the bundled `scripts/mcp_server.py` as a local `mem0` MCP server, injects prompt-time memory search results, adds memory-first system guidance, and stores compact session-state memories during compaction. It preserves an existing `mcp.mem0` config unless you pass `overwriteMcp: true` as a plugin option.
+
+**Option B — Direct MCP** (MCP only):
+
+```jsonc
+{
+  "mcp": {
+    "mem0": {
+      "type": "local",
+      "command": ["python3", "/path/to/mem0-plugin/scripts/mcp_server.py"],
+      "environment": {
+        "MEM0_SELFHOSTED_URL": "http://your-mem0-host:8888",
+        "MEM0_SELFHOSTED_USER_ID": "your-user-id",
+        "MEM0_SELFHOSTED_AGENT_ID": "opencode"
+      },
+      "enabled": true,
+      "timeout": 5000
+    }
+  }
+}
+```
 
 ### Codex
 
@@ -147,17 +187,18 @@ After installing, confirm the MCP server is connected:
 
 ## What's included
 
-| Component | Claude Code / Cowork | Cursor (Marketplace) | Cursor (Deeplink/Manual) | Codex (Sideload) | Codex (Direct MCP) |
-|-----------|:--------------------:|:--------------------:|:------------------------:|:----------------:|:------------------:|
-| MCP Server | Yes | Yes | Yes | Yes | Yes |
-| Lifecycle Hooks | Yes | Yes | No | Opt-in | No |
-| Mem0 SDK Skill | Yes | Yes | No | Yes | No |
-| Memory Protocol Skill | No | No | No | Yes | No |
+| Component | Claude Code / Cowork | OpenCode (Plugin) | OpenCode (Direct MCP) | Cursor (Marketplace) | Cursor (Deeplink/Manual) | Codex (Sideload) | Codex (Direct MCP) |
+|-----------|:--------------------:|:-----------------:|:---------------------:|:--------------------:|:------------------------:|:----------------:|:------------------:|
+| MCP Server | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Lifecycle Hooks | Yes | Native hooks | No | Yes | No | Opt-in | No |
+| Prompt-time Memory Recall | Yes | Yes | No | Yes | No | Yes | No |
+| Mem0 SDK Skill | Yes | No | No | Yes | No | Yes | No |
+| Memory Protocol Skill | No | System guidance | No | No | No | Yes | No |
 
-- **MCP Server** — Connects to the Mem0 remote MCP server (`mcp.mem0.ai`), providing tools to add, search, update, and delete memories. No local dependencies required.
-- **Lifecycle Hooks** — Automatic memory capture at key points. Claude Code and Cursor wire hooks up natively when the plugin is installed (session start, context compaction, task completion, session end). Codex hooks are opt-in via a one-time installer (`scripts/install_codex_hooks.py`) that writes entries into `~/.codex/hooks.json` for `SessionStart`, `UserPromptSubmit`, and `Stop`.
+- **MCP Server** — Provides tools to add, search, update, and delete memories. Claude Code and OpenCode in this fork use the bundled self-hosted stdio adapter; Cursor and Codex examples use Mem0 Cloud unless otherwise configured.
+- **Lifecycle Hooks** — Automatic memory capture at key points. Claude Code and Cursor wire hooks up natively when the plugin is installed. OpenCode uses native plugin hooks for prompt-time recall and compaction/session-state recovery. Codex hooks are opt-in via a one-time installer (`scripts/install_codex_hooks.py`) that writes entries into `~/.codex/hooks.json` for `SessionStart`, `UserPromptSubmit`, and `Stop`.
 - **Mem0 SDK Skill** — Guides the AI on how to integrate the Mem0 SDK (Python & TypeScript) into your applications.
-- **Memory Protocol Skill** — Codex-specific skill that instructs the agent to retrieve relevant memories at task start, store learnings on completion, and capture session state before context loss. Complements the lifecycle hooks on Codex.
+- **Memory Protocol Skill** — Codex-specific skill that instructs the agent to retrieve relevant memories at task start, store learnings on completion, and capture session state before context loss. OpenCode receives equivalent lightweight system guidance from its plugin.
 
 ## MCP Tools
 
