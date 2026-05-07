@@ -35,7 +35,11 @@ export interface GraphModel {
   dailyCounts: Array<{ day: string; count: number }>;
   entityCounts: Record<GraphNodeType, number>;
   isolatedMemories: number;
+  connectedMemories: number;
   averageMemoryLength: number;
+  maxDegree: number;
+  averageDegree: number;
+  typeCounts: Array<{ type: string; count: number }>;
 }
 
 export interface DashboardData {

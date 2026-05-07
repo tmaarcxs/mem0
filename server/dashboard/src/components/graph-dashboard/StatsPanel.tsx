@@ -1,6 +1,18 @@
 "use client";
 
-import { Activity, BrainCircuit, CircleDotDashed, Network, Sparkles, Users, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  BrainCircuit,
+  CalendarDays,
+  CircleDotDashed,
+  Gauge,
+  Link2,
+  Network,
+  Sparkles,
+  Tags,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { GraphModel, GraphNode } from "./types";
 import { cn } from "@/lib/utils";
 
@@ -71,9 +83,23 @@ function MiniBars({ data }: { data: Array<{ day: string; count: number }> }) {
   );
 }
 
+function MetricRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-white/5 py-2 last:border-b-0">
+      <span className="text-xs text-stone-500">{label}</span>
+      <span className="font-mono text-xs text-stone-200">{value}</span>
+    </div>
+  );
+}
+
 export function StatsPanel({ graph, selectedNode, totalMemories, totalEntities, errors }: StatsPanelProps) {
   const linksPerMemory = totalMemories ? (graph.links.length / totalMemories).toFixed(1) : "0";
   const topKeywords = graph.keywordCounts.slice(0, 12);
+  const connectedPercent = totalMemories
+    ? Math.round((graph.connectedMemories / totalMemories) * 100)
+    : 0;
+  const strongestConcept = graph.keywordCounts[0];
+  const activeDays = graph.dailyCounts.filter((item) => item.count > 0).length;
 
   return (
     <aside className="min-h-0 space-y-3 overflow-y-auto pr-1 xl:h-full">
@@ -104,6 +130,20 @@ export function StatsPanel({ graph, selectedNode, totalMemories, totalEntities, 
           accent="bg-sky-300/20"
         />
         <StatCard
+          label="Coverage"
+          value={`${connectedPercent}%`}
+          detail={`${graph.connectedMemories} memories connected to the atlas`}
+          icon={Gauge}
+          accent="bg-emerald-300/20"
+        />
+        <StatCard
+          label="Hub strength"
+          value={graph.maxDegree}
+          detail={`${graph.averageDegree} average node degree`}
+          icon={Link2}
+          accent="bg-cyan-300/20"
+        />
+        <StatCard
           label="Entities"
           value={totalEntities}
           detail={`${graph.entityCounts.user} users · ${graph.entityCounts.agent} agents · ${graph.entityCounts.run} runs`}
@@ -113,7 +153,7 @@ export function StatsPanel({ graph, selectedNode, totalMemories, totalEntities, 
         <StatCard
           label="Keywords"
           value={graph.entityCounts.keyword}
-          detail="Recurring concepts inferred from text"
+          detail={strongestConcept ? `${strongestConcept.keyword} leads the map` : "Recurring concepts inferred from text"}
           icon={Sparkles}
           accent="bg-violet-300/20"
         />
@@ -143,6 +183,10 @@ export function StatsPanel({ graph, selectedNode, totalMemories, totalEntities, 
               <span className="truncate font-mono text-stone-400">{selectedNode.memory.user_id || "--"}</span>
               <span>Agent</span>
               <span className="truncate font-mono text-stone-400">{selectedNode.memory.agent_id || "--"}</span>
+              <span>Type</span>
+              <span className="truncate font-mono text-stone-400">
+                {typeof selectedNode.memory.metadata?.type === "string" ? selectedNode.memory.metadata.type : "--"}
+              </span>
               <span>Updated</span>
               <span className="break-all font-mono text-stone-400">
                 {selectedNode.memory.updated_at || selectedNode.memory.created_at || "--"}
@@ -162,10 +206,36 @@ export function StatsPanel({ graph, selectedNode, totalMemories, totalEntities, 
           <h2 className="font-semibold">Memory activity</h2>
         </div>
         <MiniBars data={graph.dailyCounts} />
+        <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3">
+          <MetricRow label="Active days shown" value={activeDays} />
+          <MetricRow label="Recent peak" value={Math.max(...graph.dailyCounts.map((item) => item.count), 0)} />
+        </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#0b0f10] p-4">
-        <h2 className="font-semibold text-stone-100">Top concepts</h2>
+        <div className="mb-3 flex items-center gap-2 text-stone-100">
+          <Tags className="size-4" />
+          <h2 className="font-semibold">Memory categories</h2>
+        </div>
+        <div className="space-y-2">
+          {graph.typeCounts.length === 0 ? (
+            <p className="text-sm text-stone-500">No metadata categories yet.</p>
+          ) : (
+            graph.typeCounts.map((item) => (
+              <div key={item.type} className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2">
+                <span className="truncate text-xs text-stone-300">{item.type}</span>
+                <span className="font-mono text-xs text-stone-500">{item.count}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-[#0b0f10] p-4">
+        <div className="mb-3 flex items-center gap-2 text-stone-100">
+          <CalendarDays className="size-4" />
+          <h2 className="font-semibold">Top concepts</h2>
+        </div>
         <div className="mt-3 flex max-h-40 flex-wrap gap-2 overflow-y-auto pr-1">
           {topKeywords.length === 0 ? (
             <p className="text-sm text-stone-500">Not enough repeated concepts yet.</p>

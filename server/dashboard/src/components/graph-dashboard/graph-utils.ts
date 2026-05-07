@@ -276,9 +276,22 @@ export function buildGraph(memories: Memory[], entities: Entity[]): GraphModel {
     }
   }
 
+  const degree = new Map<string, number>();
+  for (const link of links.values()) {
+    degree.set(link.source, (degree.get(link.source) || 0) + 1);
+    degree.set(link.target, (degree.get(link.target) || 0) + 1);
+  }
   const linkedMemoryIds = new Set(
     [...links.values()].flatMap((link) => [link.source, link.target]),
   );
+  const typeMap = new Map<string, number>();
+  for (const memory of memories) {
+    const type =
+      typeof memory.metadata?.type === "string" && memory.metadata.type.trim()
+        ? memory.metadata.type.trim()
+        : "uncategorized";
+    typeMap.set(type, (typeMap.get(type) || 0) + 1);
+  }
   const entityCounts = NODE_ORDER.reduce(
     (acc, type) => ({ ...acc, [type]: 0 }),
     {} as Record<GraphNodeType, number>,
@@ -286,6 +299,11 @@ export function buildGraph(memories: Memory[], entities: Entity[]): GraphModel {
   for (const node of nodes.values()) entityCounts[node.type] += 1;
 
   const placedNodes = placeNodes([...nodes.values()], keywordCounts);
+  const connectedMemories = memories.filter((memory) => linkedMemoryIds.has(`memory:${memory.id}`)).length;
+  const maxDegree = Math.max(...placedNodes.map((node) => degree.get(node.id) || 0), 0);
+  const averageDegree = placedNodes.length
+    ? Number((placedNodes.reduce((sum, node) => sum + (degree.get(node.id) || 0), 0) / placedNodes.length).toFixed(1))
+    : 0;
 
   return {
     nodes: placedNodes,
@@ -298,9 +316,16 @@ export function buildGraph(memories: Memory[], entities: Entity[]): GraphModel {
       .slice(-14),
     entityCounts,
     isolatedMemories: memories.filter((memory) => !linkedMemoryIds.has(`memory:${memory.id}`)).length,
+    connectedMemories,
     averageMemoryLength: memories.length
       ? Math.round(memories.reduce((sum, memory) => sum + (memory.memory?.length || 0), 0) / memories.length)
       : 0,
+    maxDegree,
+    averageDegree,
+    typeCounts: [...typeMap.entries()]
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type))
+      .slice(0, 10),
   };
 }
 
