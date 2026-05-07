@@ -34,6 +34,8 @@ export default function NavWrapper() {
     (state: RootState) => state.layout.isSidebarCollapsed,
   );
   const { user, logout } = useAuth();
+  const displayName = user?.name || "Local operator";
+  const displayEmail = user?.email || "Auth disabled";
 
   const instanceName = process.env.NEXT_PUBLIC_INSTANCE_NAME || "Mem0";
 
@@ -83,14 +85,14 @@ export default function NavWrapper() {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 w-full text-left hover:bg-surface-default-secondary-hover rounded-md p-1.5 transition-colors">
                     <div className="grid size-7 place-items-center rounded-md bg-surface-default-tertiary text-onSurface-default-secondary text-xs font-semibold shrink-0">
-                      {user?.name?.charAt(0).toUpperCase() || "?"}
+                      {displayName.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="typo-body-xs text-onSurface-default-primary truncate">
-                        {user?.name}
+                        {displayName}
                       </span>
                       <span className="typo-caption-sm text-onSurface-default-tertiary truncate">
-                        {user?.email}
+                        {displayEmail}
                       </span>
                     </div>
                   </button>
@@ -102,10 +104,10 @@ export default function NavWrapper() {
                 >
                   <div className="px-2 py-1.5">
                     <p className="typo-body-sm text-onSurface-default-primary">
-                      {user?.name}
+                      {displayName}
                     </p>
                     <p className="typo-body-xs text-onSurface-default-tertiary">
-                      {user?.email}
+                      {displayEmail}
                     </p>
                   </div>
                   <DropdownMenuSeparator className="bg-memBorder-primary" />

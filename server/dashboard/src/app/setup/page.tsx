@@ -263,7 +263,7 @@ export default function SetupPage() {
 
   const handleGoToDashboard = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/dashboard/requests");
+    router.push("/dashboard/graph");
   };
 
   const handleTest = async (e: React.FormEvent) => {
