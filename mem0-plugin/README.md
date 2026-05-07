@@ -59,11 +59,26 @@ Once the npm package is published, install it with OpenCode:
 opencode plugin @tmaarcxs/opencode-mem0
 ```
 
-Or add it to your OpenCode config:
+For local development before publishing, install from the package directory rather than a generated tarball:
+
+```bash
+opencode plugin /path/to/mem0-plugin --global --force
+```
+
+Then add persistent options to your OpenCode config so the plugin does not depend on shell environment variables:
 
 ```jsonc
 {
-  "plugin": ["@tmaarcxs/opencode-mem0"]
+  "plugin": [
+    [
+      "/path/to/mem0-plugin",
+      {
+        "selfHostedUrl": "http://your-mem0-host:8888",
+        "userId": "your-user-id",
+        "agentId": "opencode"
+      }
+    ]
+  ]
 }
 ```
 

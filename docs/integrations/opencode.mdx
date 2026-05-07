@@ -46,11 +46,44 @@ Once the package is published to npm, install it with OpenCode:
 opencode plugin @tmaarcxs/opencode-mem0
 ```
 
-Or add it to your OpenCode config:
+For local development before publishing, install from the package directory rather than a generated tarball:
+
+```bash
+opencode plugin /path/to/mem0-plugin --global --force
+```
+
+Then add persistent options to your OpenCode config so the plugin does not depend on shell environment variables:
 
 ```jsonc
 {
-  "plugin": ["@tmaarcxs/opencode-mem0"]
+  "plugin": [
+    "oh-my-openagent@latest",
+    [
+      "/path/to/mem0-plugin",
+      {
+        "selfHostedUrl": "http://your-mem0-host:8888",
+        "userId": "your-user-id",
+        "agentId": "opencode"
+      }
+    ]
+  ]
+}
+```
+
+If you install from npm instead, use the same options with the package name:
+
+```jsonc
+{
+  "plugin": [
+    [
+      "@tmaarcxs/opencode-mem0",
+      {
+        "selfHostedUrl": "http://your-mem0-host:8888",
+        "userId": "your-user-id",
+        "agentId": "opencode"
+      }
+    ]
+  ]
 }
 ```
 
@@ -141,7 +174,9 @@ Once connected, OpenCode can use these tools:
 ## Troubleshooting
 
 - **No `mem0` MCP server appears** — Restart OpenCode after changing config and run `opencode mcp list`.
-- **Connection failed** — Verify `MEM0_SELFHOSTED_URL` points to a reachable REST server and that Python 3 can run the bundled `scripts/mcp_server.py`.
+- **Connection failed** — Verify `selfHostedUrl` or `MEM0_SELFHOSTED_URL` points to a reachable REST server and that Python 3 can run the bundled `scripts/mcp_server.py`. If the error mentions `localhost:8888`, add persistent plugin options in `opencode.jsonc` instead of relying on shell environment variables.
+- **`opencode mcp list` succeeds but memory calls fail** — MCP startup can list tools without proving the Mem0 REST API is reachable. Test the REST URL directly with `curl http://your-mem0-host:8888/memories` or run a real prompt that should trigger memory recall.
+- **Local tarball install fails** — Use `opencode plugin /path/to/mem0-plugin --global --force` for local development installs. Some OpenCode versions do not read local `.tgz` plugin tarballs reliably.
 - **Existing MCP config is not changed** — The plugin preserves a user-defined `mcp.mem0` by default. Set `overwriteMcp: true` if you want the plugin to replace it.
-- **No memories are injected** — Check that `MEM0_SELFHOSTED_USER_ID` matches the user scope that stored the memories, and try a more specific prompt.
+- **No memories are injected** — Check that `userId` or `MEM0_SELFHOSTED_USER_ID` matches the user scope that stored the memories, and try a more specific prompt.
 - **Duplicate date prefixes in memory text** — The plugin instructs OpenCode not to add leading dates unless the date itself matters because Mem0 already stores timestamps as metadata.
