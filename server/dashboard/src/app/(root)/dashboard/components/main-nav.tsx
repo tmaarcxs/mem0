@@ -7,6 +7,7 @@ import {
   GalleryVerticalEnd,
   KeyRound,
   Network,
+  Search,
   Settings,
   Users,
   Wrench,
@@ -38,6 +39,11 @@ const activityItems: NavItem[] = [
     title: "Graph",
     url: "/dashboard/graph",
     icon: Network,
+  },
+  {
+    title: "Retrieval",
+    url: "/dashboard/retrieval",
+    icon: Search,
   },
   {
     title: "Requests",

@@ -10,6 +10,26 @@ export interface Memory {
   updated_at?: string;
 }
 
+export interface MemorySearchRequest {
+  query: string;
+  filters?: Record<string, unknown>;
+  top_k?: number;
+  threshold?: number;
+}
+
+export interface MemorySearchResult extends Memory {
+  score?: number;
+  actor_id?: string;
+  role?: string;
+  explanation?: string;
+  reason?: string;
+  why_matched?: string;
+}
+
+export interface MemorySearchResponse {
+  results: MemorySearchResult[];
+}
+
 export interface ApiKey {
   id: string;
   label: string;
