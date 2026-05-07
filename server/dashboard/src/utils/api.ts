@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosInstance } from "axios";
 
 let cachedToken: string | null = null;
 const LOGIN_PATH = "/login";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 export const setAccessToken = (token: string | null) => {
   cachedToken = token;
@@ -40,7 +41,7 @@ const createApi = (): AxiosInstance & {
   postStream: (url: string, data: unknown) => Promise<Response>;
 } => {
   const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL,
+    baseURL: API_BASE_URL,
   });
 
   api.interceptors.request.use(
@@ -84,7 +85,7 @@ const createApi = (): AxiosInstance & {
   );
 
   const postStream = async (url: string, data: unknown): Promise<Response> => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

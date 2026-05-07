@@ -56,9 +56,10 @@ services:
     networks:
       - mem0_network
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8888
+      - NEXT_PUBLIC_API_URL=/api/backend
       - API_INTERNAL_URL=http://mem0:8000
       - NEXT_PUBLIC_INSTANCE_NAME=Mem0
+      - AUTH_COOKIE_SECURE=false
     depends_on:
       mem0:
         condition: service_started

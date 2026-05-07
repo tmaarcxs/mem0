@@ -165,7 +165,7 @@ TOOLS = [
             "run_id": {"type": "string"},
             "metadata": {"type": "object"},
             "infer": {"type": "boolean", "description": "Whether Mem0 should infer facts from messages. Defaults to true."},
-            "memory_type": {"type": "string"},
+            "memory_type": {"type": "string", "description": "Optional category label stored in metadata.type, except procedural_memory which is passed to Mem0's procedural memory mode."},
             "prompt": {"type": "string"},
         },
     ),
@@ -262,9 +262,17 @@ def add_memory(args: Json) -> Any:
         messages = [{"role": "user", "content": text}]
 
     payload: Json = {"messages": messages}
-    for key in ("run_id", "metadata", "memory_type", "prompt"):
+    for key in ("run_id", "prompt"):
         if key in args and args[key] is not None:
             payload[key] = args[key]
+    metadata = dict(args.get("metadata") or {})
+    memory_type = args.get("memory_type")
+    if memory_type == "procedural_memory":
+        payload["memory_type"] = memory_type
+    elif memory_type and "type" not in metadata:
+        metadata["type"] = memory_type
+    if metadata:
+        payload["metadata"] = metadata
     payload["user_id"] = defaulted(args.get("user_id"), DEFAULT_USER_ID)
     payload["agent_id"] = defaulted(args.get("agent_id"), DEFAULT_AGENT_ID)
     payload["infer"] = args.get("infer", True)
