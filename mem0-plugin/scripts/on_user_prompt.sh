@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Hook: UserPromptSubmit
 #
-# Fires on every user message. Searches mem0 for relevant memories
-# and injects them into Claude's context before processing.
+# Fires on every user message. Instead of pre-searching mem0 with the
+# raw prompt, this injects a decision rubric telling the agent when
+# and how to search itself. The agent has more context than this
+# script does -- let it decide.
 #
-# Input:  JSON on stdin with prompt, session_id, cwd, transcript_path
-# Output: Matching memories as context text (exit 0)
-#
-# Skips search for very short prompts (< 20 chars). Uses a 3s timeout
-# to minimize latency and never blocks the user's prompt.
+# Input:  JSON on stdin (prompt, session_id, cwd, transcript_path)
+# Output: Decision rubric injected into Claude's context (exit 0)
 
+# Intentionally omit -e so the script always exits 0 even if jq fails --
+# must never block the user's prompt.
 set -uo pipefail
 
 is_placeholder() {
@@ -31,57 +32,55 @@ env_or_empty() {
 INPUT=$(cat)
 PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""' 2>/dev/null || echo "")
 
+# Acknowledgements and short replies don't warrant memory context
 if [ ${#PROMPT} -lt 20 ]; then
   exit 0
 fi
 
 BASE_URL=$(env_or_empty "${MEM0_SELFHOSTED_URL:-${MEM0_BASE_URL:-}}")
-SELFHOSTED_API_KEY=$(env_or_empty "${MEM0_SELFHOSTED_API_KEY:-}")
 HOSTED_API_KEY=$(env_or_empty "${MEM0_API_KEY:-}")
 USER_ID=$(env_or_empty "${MEM0_SELFHOSTED_USER_ID:-${MEM0_USER_ID:-${USER:-default}}}")
-TOP_K=$(env_or_empty "${MEM0_SELFHOSTED_TOP_K:-${MEM0_TOP_K:-5}}")
 
-if ! [[ "$TOP_K" =~ ^[0-9]+$ ]]; then
-  TOP_K=5
+# If neither hosted nor self-hosted mem0 is configured, the agent can't search.
+if [ -z "$BASE_URL" ] && [ -z "$HOSTED_API_KEY" ]; then
+  exit 0
 fi
 if [ -z "$USER_ID" ]; then
   USER_ID=default
 fi
 
-BODY=$(jq -n --arg query "$PROMPT" --arg user_id "$USER_ID" --argjson top_k "$TOP_K" \
-  '{query: $query, filters: {user_id: $user_id}, top_k: $top_k}')
+cat <<EOF
+## Memory check
 
-CURL_ARGS=(-s --max-time 3 -X POST -H "Content-Type: application/json" -d "$BODY")
+Before responding, decide whether persistent memory context from mem0 would
+improve your answer. The agent -- not this hook -- owns this decision.
 
-if [ -n "$BASE_URL" ]; then
-  ENDPOINT="${BASE_URL%/}/search"
-  if [ -n "$SELFHOSTED_API_KEY" ]; then
-    CURL_ARGS+=(-H "X-API-Key: $SELFHOSTED_API_KEY" -H "Authorization: Bearer $SELFHOSTED_API_KEY")
-  fi
-else
-  if [ -z "$HOSTED_API_KEY" ]; then
-    exit 0
-  fi
-  ENDPOINT="https://api.mem0.ai/v2/memories/search/"
-  CURL_ARGS+=(-H "Authorization: Token $HOSTED_API_KEY")
-fi
+**Search WHEN** the user:
+- references past work, decisions, or things "we" built
+- asks "how should we...", "best way to...", or any decision-style question
+- hits an error, bug, or asks for debugging help
+- requests work that touches their stack, tools, conventions, or preferences
+- starts a non-trivial task in a known project
 
-RESPONSE=$(curl "${CURL_ARGS[@]}" "$ENDPOINT" 2>/dev/null || echo "")
+**Skip WHEN:**
+- the prompt is an acknowledgement or continuation
+- the user is *stating* new info -- that's a write trigger (\`add_memory\`), not a search
+- it's a pure syntax / factual question answerable from general knowledge
+- you already searched this scope earlier in the turn
 
-if [ -z "$RESPONSE" ]; then
-  exit 0
-fi
-
-MEMORIES=$(echo "$RESPONSE" | jq -r '
-  if type == "array" then . else .results // [] end |
-  if length == 0 then empty else
-  "## Relevant memories from mem0\n\n" +
-  (map((.memory // .text // .content) | select(. != null) | "- " + .) | join("\n"))
-  end
-' 2>/dev/null || echo "")
-
-if [ -n "$MEMORIES" ]; then
-  echo "$MEMORIES"
-fi
+**If searching, do it well:**
+- Run **2-4 parallel** \`search_memories\` calls with different angles, not one
+  query that echoes the user's prompt.
+- Phrase queries as **nouns** ("auth module decisions"), not full sentences.
+- Filter shape: the root must be a logical operator (\`AND\` / \`OR\` / \`NOT\`)
+  with an array, and metadata uses a **nested** object (not dotted keys).
+  Combine \`user_id\` with one \`metadata.type\` clause per call:
+  - \`{"AND": [{"user_id": "$USER_ID"}, {"metadata": {"type": "decision"}}]}\` -- design / architecture
+  - \`{"AND": [{"user_id": "$USER_ID"}, {"metadata": {"type": "anti_pattern"}}]}\` -- debugging, error handling
+  - \`{"AND": [{"user_id": "$USER_ID"}, {"metadata": {"type": "user_preference"}}]}\` -- tooling, stack, style
+  - \`{"AND": [{"user_id": "$USER_ID"}, {"metadata": {"type": "convention"}}]}\` -- established patterns
+- Or scope with just \`{"AND": [{"user_id": "$USER_ID"}]}\` when no metadata filter fits.
+- Empty results are normal -- proceed without context.
+EOF
 
 exit 0
