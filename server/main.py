@@ -352,12 +352,6 @@ def add_memory(memory_create: MemoryCreate, _auth=Depends(verify_auth)):
         raise HTTPException(status_code=400, detail="At least one identifier (user_id, agent_id, run_id) is required.")
 
     params = {k: v for k, v in memory_create.model_dump().items() if v is not None and k != "messages"}
-    memory_type = params.get("memory_type")
-    if memory_type and memory_type != "procedural_memory":
-        metadata = dict(params.get("metadata") or {})
-        metadata.setdefault("type", memory_type)
-        params["metadata"] = metadata
-        params.pop("memory_type", None)
     try:
         response = get_memory_instance().add(messages=[m.model_dump() for m in memory_create.messages], **params)
         return JSONResponse(content=response)

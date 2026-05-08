@@ -38,10 +38,6 @@ class OutputData(BaseModel):
     payload: Optional[dict]
 
 
-def _cosine_distance_to_similarity(distance: float) -> float:
-    return max(0.0, min(1.0, 1.0 - distance))
-
-
 class PGVector(VectorStoreBase):
     def __init__(
         self,
@@ -264,7 +260,7 @@ class PGVector(VectorStoreBase):
             )
 
             results = cur.fetchall()
-        return [OutputData(id=str(r[0]), score=_cosine_distance_to_similarity(float(r[1])), payload=r[2]) for r in results]
+        return [OutputData(id=str(r[0]), score=float(r[1]), payload=r[2]) for r in results]
 
     def keyword_search(self, query, top_k=5, filters=None):
         """
