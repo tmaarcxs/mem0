@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 interface MemoryGraphProps {
   graph: GraphModel;
   selectedNodeId: string;
-  onSelectNode: (node: GraphNode) => void;
+  onSelectNode: (node?: GraphNode) => void;
 }
 
 type ViewMode = "map" | "focus" | "timeline" | "concepts";
@@ -52,6 +52,10 @@ function nodeDate(node: GraphNode) {
   return node.memory?.updated_at || node.memory?.created_at || "";
 }
 
+function memoryPreview(node: GraphNode) {
+  return (node.memory?.memory || node.label).replace(/\s+/g, " ").trim();
+}
+
 export function MemoryGraph({ graph, selectedNodeId, onSelectNode }: MemoryGraphProps) {
   const [query, setQuery] = useState("");
   const [zoom, setZoom] = useState(1);
@@ -59,6 +63,7 @@ export function MemoryGraph({ graph, selectedNodeId, onSelectNode }: MemoryGraph
   const [viewMode, setViewMode] = useState<ViewMode>("map");
   const containerRef = useRef<HTMLElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const draggedRef = useRef(false);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -173,6 +178,7 @@ export function MemoryGraph({ graph, selectedNodeId, onSelectNode }: MemoryGraph
     const dx = event.clientX - dragStart.x;
     const dy = event.clientY - dragStart.y;
     if (Math.abs(dx) + Math.abs(dy) < 2) return;
+    draggedRef.current = true;
     setPan((value) => ({ x: value.x - dx * scale, y: value.y - dy * scale }));
     dragStartRef.current = { x: event.clientX, y: event.clientY };
   }, [width, zoom]);
@@ -269,7 +275,13 @@ export function MemoryGraph({ graph, selectedNodeId, onSelectNode }: MemoryGraph
         <svg
           className="absolute inset-0 size-full cursor-grab touch-none active:cursor-grabbing"
           viewBox={viewBox}
+          onClick={() => {
+            if (!draggedRef.current) {
+              onSelectNode(undefined);
+            }
+          }}
           onMouseDown={(event) => {
+            draggedRef.current = false;
             dragStartRef.current = { x: event.clientX, y: event.clientY };
           }}
           onMouseLeave={() => {
@@ -313,8 +325,11 @@ export function MemoryGraph({ graph, selectedNodeId, onSelectNode }: MemoryGraph
             {visible.nodes.map((node) => {
               const active = selectedNeighbors.size === 0 || selectedNeighbors.has(node.id);
               const selected = selectedNodeId === node.id;
+              const connected = (degree.get(node.id) || 0) > 0;
               const important = node.type !== "memory" || selected || (active && selectedNeighbors.size > 0);
-              const showLabel = important && (!dense || zoom > 1.15 || selected || node.type !== "memory");
+              const showLabel = important || zoom >= 2.15 || (!dense && connected && zoom >= 1.25);
+              const showPreview = node.type === "memory" && (selected || zoom >= 2.65);
+              const preview = memoryPreview(node);
               return (
                 <g
                   key={node.id}
@@ -343,7 +358,12 @@ export function MemoryGraph({ graph, selectedNodeId, onSelectNode }: MemoryGraph
                       textAnchor="middle"
                       className="select-none fill-stone-100 text-[10px] font-medium tracking-tight"
                     >
-                      {node.label}
+                      <tspan x={0}>{node.label}</tspan>
+                      {showPreview && preview !== node.label && (
+                        <tspan x={0} dy={13} className="fill-stone-300 text-[8px] font-normal">
+                          {preview.slice(0, 72)}{preview.length > 72 ? "…" : ""}
+                        </tspan>
+                      )}
                     </text>
                   )}
                 </g>
