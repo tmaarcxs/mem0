@@ -34,8 +34,8 @@ jobs:
       - name: Fetch sync refs
         run: |
           git remote add upstream https://github.com/mem0ai/mem0.git || git remote set-url upstream https://github.com/mem0ai/mem0.git
-          git fetch --prune origin main:refs/remotes/origin/main
-          git fetch --prune upstream main:refs/remotes/upstream/main
+          git fetch --prune origin +refs/heads/main:refs/remotes/origin/main
+          git fetch --prune upstream +refs/heads/main:refs/remotes/upstream/main
           git checkout -B main origin/main
 
       - name: Merge upstream
