@@ -46,12 +46,10 @@ def resolve_agent_id(default: str = "claude-code") -> str:
 
 def headers() -> dict[str, str]:
     result = {"Content-Type": "application/json"}
-    key = api_key()
-    if not key:
-        return result
     if is_self_hosted():
-        result["X-API-Key"] = key
-    else:
+        return result
+    key = api_key()
+    if key:
         result["Authorization"] = f"Token {key}"
     return result
 

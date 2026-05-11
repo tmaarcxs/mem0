@@ -6,7 +6,6 @@
       "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py"],
       "env": {
         "MEM0_BASE_URL": "${MEM0_BASE_URL}",
-        "MEM0_API_KEY": "${MEM0_API_KEY}",
         "MEM0_USER_ID": "${MEM0_USER_ID}",
         "MEM0_AGENT_ID": "${MEM0_AGENT_ID}"
       }

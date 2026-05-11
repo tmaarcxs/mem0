@@ -10,7 +10,6 @@ type Mem0Options = PluginOptions & {
   selfHostedUrl?: string;
   userId?: string;
   agentId?: string;
-  apiKey?: string;
   timeout?: number;
   topK?: number;
   promptSearch?: boolean;
@@ -79,17 +78,8 @@ function agentId(options: Mem0Options) {
   return stringOption(options, "agentId") || envValue("MEM0_AGENT_ID") || "opencode";
 }
 
-function apiKey(options: Mem0Options) {
-  return stringOption(options, "apiKey") || envValue("MEM0_API_KEY");
-}
-
-function headers(options: Mem0Options) {
-  const key = apiKey(options);
-  const result: Record<string, string> = { "Content-Type": "application/json" };
-  if (key) {
-    result["X-API-Key"] = key;
-  }
-  return result;
+function headers(_options: Mem0Options) {
+  return { "Content-Type": "application/json" };
 }
 
 function getSession(sessionID: string) {
@@ -167,9 +157,7 @@ function mcpEnvironment(options: Mem0Options) {
     MEM0_AGENT_ID: agentId(options),
   };
   const url = stringOption(options, "selfHostedUrl") || envValue("MEM0_BASE_URL");
-  const key = apiKey(options);
   if (url) environment.MEM0_BASE_URL = url;
-  if (key) environment.MEM0_API_KEY = key;
   return environment;
 }
 
