@@ -5,14 +5,14 @@
     "email": "support@mem0.ai"
   },
   "metadata": {
-    "description": "Mem0 plugins with self-hosted Claude Code support"
+    "description": "Official Mem0 plugins for Claude"
   },
   "plugins": [
     {
       "name": "mem0",
       "source": "./mem0-plugin",
-      "description": "Mem0 memory layer for AI applications using a self-hosted Mem0 REST API in Claude Code.",
-      "version": "0.1.1"
+      "description": "Mem0 memory layer for AI applications. Add persistent memory, personalization, and semantic search to Claude workflows.",
+      "version": "0.1.2"
     }
   ]
 }

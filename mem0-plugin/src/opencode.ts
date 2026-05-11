@@ -68,24 +68,19 @@ function booleanOption(options: Mem0Options, key: keyof Mem0Options, fallback: b
 }
 
 function baseUrl(options: Mem0Options) {
-  return (
-    stringOption(options, "selfHostedUrl") ||
-    envValue("MEM0_SELFHOSTED_URL") ||
-    envValue("MEM0_BASE_URL") ||
-    "http://localhost:8888"
-  ).replace(/\/+$/, "");
+  return (stringOption(options, "selfHostedUrl") || envValue("MEM0_BASE_URL") || "http://localhost:8888").replace(/\/+$/, "");
 }
 
 function userId(options: Mem0Options) {
-  return stringOption(options, "userId") || envValue("MEM0_SELFHOSTED_USER_ID") || envValue("MEM0_USER_ID") || envValue("USER") || "default";
+  return stringOption(options, "userId") || envValue("MEM0_USER_ID") || envValue("USER") || "default";
 }
 
 function agentId(options: Mem0Options) {
-  return stringOption(options, "agentId") || envValue("MEM0_SELFHOSTED_AGENT_ID") || envValue("MEM0_AGENT_ID") || "opencode";
+  return stringOption(options, "agentId") || envValue("MEM0_AGENT_ID") || "opencode";
 }
 
 function apiKey(options: Mem0Options) {
-  return stringOption(options, "apiKey") || envValue("MEM0_SELFHOSTED_API_KEY");
+  return stringOption(options, "apiKey") || envValue("MEM0_API_KEY");
 }
 
 function headers(options: Mem0Options) {
@@ -126,7 +121,7 @@ function memoryText(result: SearchResult) {
 }
 
 async function searchMemories(query: string, options: Mem0Options) {
-  const topK = numberOption(options, "topK", Number(envValue("MEM0_SELFHOSTED_TOP_K") || envValue("MEM0_TOP_K") || 5));
+  const topK = numberOption(options, "topK", 5);
   const response = await fetch(`${baseUrl(options)}/search`, {
     method: "POST",
     headers: headers(options),
@@ -169,13 +164,13 @@ async function storeSessionState(sessionID: string, state: SessionState, options
 
 function mcpEnvironment(options: Mem0Options) {
   const environment: Record<string, string> = {
-    MEM0_SELFHOSTED_USER_ID: userId(options),
-    MEM0_SELFHOSTED_AGENT_ID: agentId(options),
+    MEM0_USER_ID: userId(options),
+    MEM0_AGENT_ID: agentId(options),
   };
-  const url = stringOption(options, "selfHostedUrl") || envValue("MEM0_SELFHOSTED_URL") || envValue("MEM0_BASE_URL");
+  const url = stringOption(options, "selfHostedUrl") || envValue("MEM0_BASE_URL");
   const key = apiKey(options);
-  if (url) environment.MEM0_SELFHOSTED_URL = url;
-  if (key) environment.MEM0_SELFHOSTED_API_KEY = key;
+  if (url) environment.MEM0_BASE_URL = url;
+  if (key) environment.MEM0_API_KEY = key;
   return environment;
 }
 
@@ -189,7 +184,7 @@ function registerMcp(input: Config, options: Mem0Options) {
     command: ["python3", join(pluginRoot(), "scripts", "mcp_server.py")],
     environment: mcpEnvironment(options),
     enabled: true,
-    timeout: numberOption(options, "timeout", Number(envValue("MEM0_SELFHOSTED_TIMEOUT") || envValue("MEM0_TIMEOUT") || 5000)),
+    timeout: numberOption(options, "timeout", 5000),
   };
 }
 

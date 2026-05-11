@@ -9,18 +9,16 @@ Add persistent memory to your AI workflows. Store, retrieve, and manage memories
 Set the self-hosted REST API URL before installing the Claude Code or OpenCode plugin:
 
 ```bash
-export MEM0_SELFHOSTED_URL="http://your-mem0-host:8888"
-export MEM0_SELFHOSTED_USER_ID="your-user-id"
-export MEM0_SELFHOSTED_AGENT_ID="claude-code"
+export MEM0_BASE_URL="http://your-mem0-host:8888"
+export MEM0_USER_ID="your-user-id"
+export MEM0_AGENT_ID="claude-code"
 ```
 
 If your self-hosted server requires auth, also set:
 
 ```bash
-export MEM0_SELFHOSTED_API_KEY="your-self-hosted-api-key"
+export MEM0_API_KEY="your-api-key"
 ```
-
-The bundled MCP adapter also accepts `MEM0_BASE_URL`, `MEM0_USER_ID`, and `MEM0_AGENT_ID` as fallbacks.
 
 ### Mem0 Cloud mode for Cursor and Codex
 
@@ -93,9 +91,9 @@ The plugin registers the bundled `scripts/mcp_server.py` as a local `mem0` MCP s
       "type": "local",
       "command": ["python3", "/path/to/mem0-plugin/scripts/mcp_server.py"],
       "environment": {
-        "MEM0_SELFHOSTED_URL": "http://your-mem0-host:8888",
-        "MEM0_SELFHOSTED_USER_ID": "your-user-id",
-        "MEM0_SELFHOSTED_AGENT_ID": "opencode"
+        "MEM0_BASE_URL": "http://your-mem0-host:8888",
+        "MEM0_USER_ID": "your-user-id",
+        "MEM0_AGENT_ID": "opencode"
       },
       "enabled": true,
       "timeout": 5000
@@ -214,6 +212,32 @@ After installing, confirm the MCP server is connected:
 - **Lifecycle Hooks** — Automatic memory capture at key points. Claude Code and Cursor wire hooks up natively when the plugin is installed. OpenCode uses native plugin hooks for prompt-time recall and compaction/session-state recovery. Codex hooks are opt-in via a one-time installer (`scripts/install_codex_hooks.py`) that writes entries into `~/.codex/hooks.json` for `SessionStart`, `UserPromptSubmit`, and `Stop`.
 - **Mem0 SDK Skill** — Guides the AI on how to integrate the Mem0 SDK (Python & TypeScript) into your applications.
 - **Memory Protocol Skill** — Codex-specific skill that instructs the agent to retrieve relevant memories at task start, store learnings on completion, and capture session state before context loss. OpenCode receives equivalent lightweight system guidance from its plugin.
+
+## Updating the plugin
+
+When the plugin updates (new version pulled from the marketplace, or a fresh local install), the MCP server connection in your existing Claude Code / Cursor / Codex session is left holding a stale handle and stops responding. **Restart your client to reconnect:**
+
+- **Claude Code:** run `/restart` in the prompt, or close and reopen the CLI.
+- **Cursor:** quit and relaunch.
+- **Codex:** restart the editor session.
+
+Your `MEM0_API_KEY` doesn't need to be re-entered — the auth header is re-read from your environment on the new session. The plugin's MCP config uses `${MEM0_API_KEY}` interpolation at session start, not at install time, so as long as the env var is set persistently (in your shell profile or `~/.claude/settings.json` `env` block), reconnection is automatic on restart.
+
+If reconnection still fails after a restart, check that `MEM0_API_KEY` is reachable in the new shell (`echo $MEM0_API_KEY`) and confirm you're using a key that starts with `m0-` (from https://app.mem0.ai/dashboard/api-keys, not a legacy token).
+
+## Optional: tune categories for coding workflows
+
+mem0 auto-tags every memory with one or more `categories` from a project-level list. The default list is consumer-oriented (`food`, `hobbies`, `music` …) — useful for chat assistants, less so for code. A one-shot script in this plugin replaces it with a coding-focused taxonomy:
+
+```bash
+# Dry-run first -- prints current vs proposed, no changes:
+python mem0-plugin/scripts/setup_coding_categories.py
+
+# Actually write:
+python mem0-plugin/scripts/setup_coding_categories.py --apply
+```
+
+Requires the `mem0ai` Python SDK (`pip install mem0ai`) and `MEM0_API_KEY` set. New memories will then auto-tag against `architecture_decisions`, `anti_patterns`, `task_learnings`, `tooling_setup`, `bug_fixes`, `coding_conventions`, `user_preferences`. Re-run with a different list any time; `project.update(custom_categories=[...])` always replaces.
 
 ## MCP Tools
 

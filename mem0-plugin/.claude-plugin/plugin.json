@@ -1,13 +1,13 @@
 {
   "name": "mem0",
-  "version": "0.1.1",
-  "description": "Mem0 memory layer for AI applications. Add persistent memory, personalization, and semantic search to Claude workflows using a self-hosted Mem0 REST API.",
+  "version": "0.1.2",
+  "description": "Mem0 memory layer for AI applications. Add persistent memory, personalization, and semantic search to Claude workflows using configurable Mem0 endpoints.",
   "author": {
     "name": "Mem0",
     "email": "support@mem0.ai"
   },
   "homepage": "https://mem0.ai",
-  "repository": "https://github.com/tmaarcxs/mem0",
+  "repository": "https://github.com/mem0ai/mem0",
   "license": "Apache-2.0",
   "keywords": ["memory", "personalization", "mcp", "semantic-search"]
 }

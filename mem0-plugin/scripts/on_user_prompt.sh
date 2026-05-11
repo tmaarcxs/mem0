@@ -13,21 +13,9 @@
 # must never block the user's prompt.
 set -uo pipefail
 
-is_placeholder() {
-  case "${1:-}" in
-    ""|'${'*) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-env_or_empty() {
-  local value="${1:-}"
-  if is_placeholder "$value"; then
-    printf ''
-  else
-    printf '%s' "$value"
-  fi
-}
+if [ -n "${MEM0_DEBUG:-}" ]; then
+  mkdir -p "$HOME/.mem0" && exec 2>>"$HOME/.mem0/hooks.log"
+fi
 
 INPUT=$(cat)
 PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""' 2>/dev/null || echo "")
@@ -37,17 +25,15 @@ if [ ${#PROMPT} -lt 20 ]; then
   exit 0
 fi
 
-BASE_URL=$(env_or_empty "${MEM0_SELFHOSTED_URL:-${MEM0_BASE_URL:-}}")
-HOSTED_API_KEY=$(env_or_empty "${MEM0_API_KEY:-}")
-USER_ID=$(env_or_empty "${MEM0_SELFHOSTED_USER_ID:-${MEM0_USER_ID:-${USER:-default}}}")
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=_endpoint.sh
+. "$SCRIPT_DIR/_endpoint.sh"
 
-# If neither hosted nor self-hosted mem0 is configured, the agent can't search.
-if [ -z "$BASE_URL" ] && [ -z "$HOSTED_API_KEY" ]; then
+if [ "$MEM0_IS_CONFIGURED" != "1" ]; then
   exit 0
 fi
-if [ -z "$USER_ID" ]; then
-  USER_ID=default
-fi
+
+USER_ID="$MEM0_RESOLVED_USER_ID"
 
 cat <<EOF
 ## Memory check

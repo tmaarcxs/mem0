@@ -20,6 +20,18 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from datetime import date, timedelta
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _endpoint import (
+    configured,
+    headers,
+    is_self_hosted,
+    memory_create_path,
+    resolve_agent_id,
+    resolve_user_id,
+    url,
+)
 
 log = logging.getLogger("mem0-capture")
 log.setLevel(logging.DEBUG)
@@ -27,23 +39,24 @@ _handler = logging.StreamHandler(sys.stderr)
 _handler.setFormatter(logging.Formatter("[mem0-capture] %(message)s"))
 log.addHandler(_handler)
 
+if os.environ.get("MEM0_DEBUG"):
+    _log_dir = os.path.expanduser("~/.mem0")
+    try:
+        os.makedirs(_log_dir, exist_ok=True)
+        _file_handler = logging.FileHandler(os.path.join(_log_dir, "hooks.log"))
+        _file_handler.setFormatter(logging.Formatter("[mem0-capture] %(asctime)s %(message)s"))
+        log.addHandler(_file_handler)
+    except OSError:
+        pass
+
 MAX_TAIL_LINES = 500
 MAX_USER_MESSAGES = 30
 MAX_BASH_COMMANDS = 20
 MAX_ASSISTANT_TEXT = 10000
-
-
-def env_value(name: str) -> str | None:
-    value = os.environ.get(name)
-    if not value:
-        return None
-    if value.startswith("${") and value.endswith("}"):
-        return None
-    return value
-
-
-API_URL = (env_value("MEM0_SELFHOSTED_URL") or env_value("MEM0_BASE_URL") or "https://api.mem0.ai").rstrip("/")
-SELF_HOSTED = "api.mem0.ai" not in API_URL
+# session_state captures churn fast (active codebase, files in flight). Past
+# ~3 months they're stale noise. Durable facts (decisions, conventions) are
+# stored separately by the agent without an expiration_date.
+SESSION_STATE_EXPIRY_DAYS = 90
 
 
 def tail_lines(filepath: str, n: int) -> list[str]:
@@ -161,37 +174,27 @@ def build_content(state: dict, source: str) -> str:
     return "\n".join(parts)
 
 
-def memory_headers(api_key: str) -> dict[str, str]:
-    headers = {"Content-Type": "application/json"}
-    if not api_key:
-        return headers
-    if SELF_HOSTED:
-        headers["X-API-Key"] = api_key
-        headers["Authorization"] = f"Bearer {api_key}"
-    else:
-        headers["Authorization"] = f"Token {api_key}"
-    return headers
-
-
-def store_memory(api_key: str, content: str, user_id: str, agent_id: str, source: str) -> bool:
+def store_memory(content: str, user_id: str, source: str, session_id: str = "") -> bool:
     """Store session state as a memory via the Mem0 REST API."""
+    expires = (date.today() + timedelta(days=SESSION_STATE_EXPIRY_DAYS)).isoformat()
     body = {
         "messages": [{"role": "user", "content": content}],
         "user_id": user_id,
         "metadata": {
             "type": "session_state",
             "source": source,
+            "session_id": session_id,
         },
+        "expiration_date": expires,
     }
-    if SELF_HOSTED:
-        body["agent_id"] = agent_id
+    if is_self_hosted():
+        body["agent_id"] = resolve_agent_id()
 
     data = json.dumps(body).encode("utf-8")
-    path = "/memories" if SELF_HOSTED else "/v1/memories/"
     req = urllib.request.Request(
-        f"{API_URL}{path}",
+        url(memory_create_path()),
         data=data,
-        headers=memory_headers(api_key),
+        headers=headers(),
         method="POST",
     )
 
@@ -213,9 +216,8 @@ def main():
         if arg.startswith("--source="):
             source = arg.split("=", 1)[1]
 
-    api_key = (env_value("MEM0_SELFHOSTED_API_KEY") if SELF_HOSTED else env_value("MEM0_API_KEY")) or ""
-    if not SELF_HOSTED and not api_key:
-        log.debug("MEM0_API_KEY not set, skipping capture")
+    if not configured():
+        log.debug("mem0 endpoint not configured, skipping capture")
         return
 
     try:
@@ -229,8 +231,8 @@ def main():
         log.debug("No transcript_path provided")
         return
 
-    user_id = env_value("MEM0_SELFHOSTED_USER_ID") or env_value("MEM0_USER_ID") or env_value("USER") or "default"
-    agent_id = env_value("MEM0_SELFHOSTED_AGENT_ID") or env_value("MEM0_AGENT_ID") or "claude-code"
+    session_id = hook_input.get("session_id", "")
+    user_id = resolve_user_id()
 
     lines = tail_lines(transcript_path, MAX_TAIL_LINES)
     if not lines:
@@ -251,7 +253,7 @@ def main():
         len(state["bash_commands"]),
     )
 
-    store_memory(api_key, content, user_id, agent_id, source)
+    store_memory(content, user_id, source, session_id)
 
 
 if __name__ == "__main__":

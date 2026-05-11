@@ -2,50 +2,31 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
 
+from _endpoint import (
+    headers,
+    memory_collection_path,
+    memory_history_path,
+    memory_item_path,
+    memory_create_path,
+    resolve_agent_id,
+    resolve_user_id,
+    search_path,
+    url as endpoint_url,
+)
+
 Json = dict[str, Any]
 
 
-def env_value(name: str) -> str | None:
-    value = os.environ.get(name)
-    if not value:
-        return None
-    if value.startswith("${") and value.endswith("}"):
-        return None
-    return value
-
-
-def env_int(name: str, default: int) -> int:
-    value = env_value(name)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        return default
-
-
-def env_float(name: str, default: float) -> float:
-    value = env_value(name)
-    if value is None:
-        return default
-    try:
-        return float(value)
-    except ValueError:
-        return default
-
-
-BASE_URL = (env_value("MEM0_SELFHOSTED_URL") or env_value("MEM0_BASE_URL") or "http://localhost:8888").rstrip("/")
-DEFAULT_USER_ID = env_value("MEM0_SELFHOSTED_USER_ID") or env_value("MEM0_USER_ID") or env_value("USER") or "default"
-DEFAULT_AGENT_ID = env_value("MEM0_SELFHOSTED_AGENT_ID") or env_value("MEM0_AGENT_ID") or "claude-code"
-DEFAULT_TOP_K = env_int("MEM0_SELFHOSTED_TOP_K", env_int("MEM0_TOP_K", 8))
-TIMEOUT = env_float("MEM0_SELFHOSTED_TIMEOUT", env_float("MEM0_TIMEOUT", 20.0))
+DEFAULT_USER_ID = resolve_user_id()
+DEFAULT_AGENT_ID = resolve_agent_id()
+DEFAULT_TOP_K = 8
+TIMEOUT = 20.0
 
 
 def read_message() -> Json | None:
@@ -85,20 +66,14 @@ def respond_error(request_id: Any, code: int, message: str) -> None:
 
 
 def request_json(method: str, path: str, payload: Json | None = None, query: Json | None = None) -> Any:
-    url = f"{BASE_URL}{path}"
+    request_url = endpoint_url(path)
     if query:
         clean_query = {key: value for key, value in query.items() if value not in (None, "")}
         if clean_query:
-            url = f"{url}?{urllib.parse.urlencode(clean_query)}"
+            request_url = f"{request_url}?{urllib.parse.urlencode(clean_query)}"
 
     body = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"Content-Type": "application/json"}
-    api_key = env_value("MEM0_SELFHOSTED_API_KEY")
-    if api_key:
-        headers["X-API-Key"] = api_key
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    req = urllib.request.Request(request_url, data=body, headers=headers(), method=method)
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
             data = response.read().decode("utf-8", "replace")
@@ -276,7 +251,7 @@ def add_memory(args: Json) -> Any:
     payload["user_id"] = defaulted(args.get("user_id"), DEFAULT_USER_ID)
     payload["agent_id"] = defaulted(args.get("agent_id"), DEFAULT_AGENT_ID)
     payload["infer"] = args.get("infer", True)
-    return request_json("POST", "/memories", payload)
+    return request_json("POST", memory_create_path(), payload)
 
 
 def search_memories(args: Json) -> Any:
@@ -294,7 +269,7 @@ def search_memories(args: Json) -> Any:
         payload["filters"] = filters
     if args.get("threshold") is not None:
         payload["threshold"] = args["threshold"]
-    return request_json("POST", "/search", payload)
+    return request_json("POST", search_path(), payload)
 
 
 def scope_query(args: Json, default_user: bool = True) -> Json:
@@ -310,7 +285,7 @@ def scope_query(args: Json, default_user: bool = True) -> Json:
 
 
 def list_entities(args: Json) -> Any:
-    data = request_json("GET", "/memories", query=scope_query(args, default_user=False))
+    data = request_json("GET", memory_collection_path(), query=scope_query(args, default_user=False))
     memories = data.get("results", data) if isinstance(data, dict) else data
     entities: dict[str, set[str]] = {"user_id": set(), "agent_id": set(), "run_id": set()}
     if isinstance(memories, list):
@@ -326,28 +301,28 @@ def list_entities(args: Json) -> Any:
 def delete_all_memories(args: Json) -> Any:
     if args.get("confirm") is not True:
         raise ValueError("delete_all_memories requires confirm=true.")
-    return request_json("DELETE", "/memories", query=scope_query(args))
+    return request_json("DELETE", memory_collection_path(), query=scope_query(args))
 
 
 def delete_entities(args: Json) -> Any:
     if args.get("confirm") is not True:
         raise ValueError("delete_entities requires confirm=true.")
     entity_type = args["entity_type"]
-    return request_json("DELETE", "/memories", query={entity_type: args["entity_id"]})
+    return request_json("DELETE", memory_collection_path(), query={entity_type: args["entity_id"]})
 
 
 TOOL_HANDLERS = {
     "add_memory": add_memory,
     "search_memories": search_memories,
-    "get_memories": lambda args: request_json("GET", "/memories", query=scope_query(args)),
-    "get_memory": lambda args: request_json("GET", f"/memories/{urllib.parse.quote(args['memory_id'], safe='')}"),
-    "get_memory_history": lambda args: request_json("GET", f"/memories/{urllib.parse.quote(args['memory_id'], safe='')}/history"),
+    "get_memories": lambda args: request_json("GET", memory_collection_path(), query=scope_query(args)),
+    "get_memory": lambda args: request_json("GET", memory_item_path(args["memory_id"])),
+    "get_memory_history": lambda args: request_json("GET", memory_history_path(args["memory_id"])),
     "update_memory": lambda args: request_json(
         "PUT",
-        f"/memories/{urllib.parse.quote(args['memory_id'], safe='')}",
+        memory_item_path(args["memory_id"]),
         {key: args[key] for key in ("text", "metadata") if key in args and args[key] is not None},
     ),
-    "delete_memory": lambda args: request_json("DELETE", f"/memories/{urllib.parse.quote(args['memory_id'], safe='')}"),
+    "delete_memory": lambda args: request_json("DELETE", memory_item_path(args["memory_id"])),
     "delete_all_memories": delete_all_memories,
     "list_entities": list_entities,
     "delete_entities": delete_entities,
