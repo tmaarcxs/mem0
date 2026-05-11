@@ -88,7 +88,6 @@ function headers(options: Mem0Options) {
   const result: Record<string, string> = { "Content-Type": "application/json" };
   if (key) {
     result["X-API-Key"] = key;
-    result.Authorization = `Bearer ${key}`;
   }
   return result;
 }

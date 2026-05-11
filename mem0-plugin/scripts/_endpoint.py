@@ -51,7 +51,6 @@ def headers() -> dict[str, str]:
         return result
     if is_self_hosted():
         result["X-API-Key"] = key
-        result["Authorization"] = f"Bearer {key}"
     else:
         result["Authorization"] = f"Token {key}"
     return result
